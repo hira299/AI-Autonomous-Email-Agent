@@ -1,0 +1,487 @@
+{
+  "name": "AI Interview Bot (Hira Ahmed)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "labelIds": [
+            "INBOX"
+          ],
+          "readStatus": "unread"
+        }
+      },
+      "id": "51c8552d-2b85-490d-a5e4-7d3c9e035fa2",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1328,
+        192
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6Xe4FijtIZIyhfZn",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $input.first().json;\n\nconst threadId = email.threadId || email.id;\nconst sender = email.From || email.from || '';\nconst subject = email.Subject || email.subject || '';\n\n// Extract plain text body\nlet body = '';\nif (email.text) {\n  body = email.text;\n} else if (email.snippet) {\n  body = email.snippet;\n} else if (email.payload && email.payload.body && email.payload.body.data) {\n  body = Buffer.from(email.payload.body.data, 'base64').toString('utf-8');\n}\n\n// Clean up quoted reply chains\nbody = body.replace(/On .* wrote:[\\s\\S]*/i, '').trim();\nbody = body.replace(/_{3,}[\\s\\S]*/g, '').trim();\n\nreturn [{\n  json: {\n    threadId,\n    sender,\n    subject,\n    body,\n    messageId: email.id,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "b2751852-2163-40fc-b061-91662e45df50",
+      "name": "Extract Email Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1104,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1l2n6mI6jyiChX4da4w_UBp6XWRS9dUMjbvkz9z8nRnU",
+          "mode": "list",
+          "cachedResultName": "interview_bot_memory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l2n6mI6jyiChX4da4w_UBp6XWRS9dUMjbvkz9z8nRnU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l2n6mI6jyiChX4da4w_UBp6XWRS9dUMjbvkz9z8nRnU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "thread_id": "={{ $('Gmail Trigger').item.json.threadId }}",
+            "role": "user",
+            "content": "={{ $('Extract Email Fields').item.json.body }}",
+            "timestamp": "={{ $('Extract Email Fields').item.json.timestamp }}",
+            "sender": "={{ $('Extract Email Fields').item.json.sender }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "thread_id",
+              "displayName": "thread_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sender",
+              "displayName": "sender",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b9449307-6658-481e-8be3-620eed4adf13",
+      "name": "Save User Message",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -80,
+        0
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "IS4KQGG5jglm8PCv",
+          "name": "n8n-sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "emailType": "text",
+        "message": "={{ $json.text }}",
+        "options": {
+          "senderName": "hira's assistant"
+        }
+      },
+      "id": "58eaad49-93a9-45f3-933a-57bb3ff7ebb6",
+      "name": "Send Gmail Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        192
+      ],
+      "webhookId": "d5cfc91d-734d-4c77-81e1-6316f3e82eb1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6Xe4FijtIZIyhfZn",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const emailFields = $('Extract Email Fields').first().json;\nconst historyRows = $('Load Chat History').all().map(r => r.json);\n\nconst threadHistory = historyRows\n  .filter(row => row.thread_id === emailFields.threadId)\n  .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));\n\nconst messages = [];\n\nfor (const row of threadHistory) {\n  if (row.role && row.content) {\n    messages.push({ role: row.role, content: row.content });\n  }\n}\n\nmessages.push({ role: 'user', content: emailFields.body });\n\n\nconst systemPrompt = `You are Hira Ahmed's professional AI assistant. You respond to recruiters and hiring managers on Hira's behalf via email. Be professional, concise, and technically precise. \"ANSWER SHOULD BE FOCUSED ON AUTOMATIONS SINCE SHE'S APPLYING FOR AI AUTOMATION SPECIALIST.\"\n\n== PERSONAL INFO ==\nName: Hira Ahmed\nEmail: hira229922@gmail.com\nGitHub: https://github.com/hira299\nLinkedIn: https://www.linkedin.com/in/hira-a-4068402a7\nLocation: Pakistan\nAvailability: 8 PM – 2 AM Pakistan Standard Time (EST hours — 9 AM to 5 PM EST)\n\n== WHAT I DO ==\nI am an AI Automation & Backend Engineer. My core focus is building production-grade automation workflows, AI-powered pipelines, and agentic systems using tools like n8n, Langflow, Make.com, and LLM APIs. I remove manual processes completely using AI and automation.\n\n== SALARY EXPECTATION ==\n$1,300 – $1,500 USD per month for full-time remote. Open to discussing structure — retainer, milestone-based, or hourly.\n\n== TECH SKILLS ==\nLanguages: Python (Advanced), JavaScript, TypeScript, SQL, Java, HTML5/CSS3\nCloud & Infrastructure: AWS (Lambda, EC2, RDS, API Gateway, S3, Secrets Manager, SQS, Cognito, CodeBuild, EventBridge), Docker, Serverless Framework, GitHub CI/CD\nBackend & Systems: Next.js, React, FastAPI, Express.js, Prisma ORM\nDatabases & Security: PostgreSQL (RDS/Aurora), DynamoDB, Distributed Web Scraping, Anti-bot Bypassing, JWT/OAuth2, Airtable, Supabase\nAI Orchestration & Automation: n8n, Langflow, Make.com, Agentic Workflows, LLM Integration (OpenAI, Anthropic, DeepSeek, Groq, Gemini), Prompt Engineering, RAG Implementation\n\n== WORK EXPERIENCE ==\n\nBackend & Automation Engineer — Tech Potion (Jan 2025 – Jan 2026)\n- Engineered a 7-stage async Python ETL pipeline processing 28,000+ AI tools records with 5.6x speed increase using concurrent workers (this pipeline was to genrate meta data for tools directory by ai , meta data included : title , description short and long , seo optimized FAQs , labeled and categorized , translated into 9 languages )\n- Architected an anti-bot scraping suite using Selenium/Playwright and residential proxies, achieving 95% success rate across 28,000+ URLs bypassing Cloudflare\n- Reduced monthly AWS infrastructure costs by 34% by fixing infinite API Gateway loops and optimizing RDS Aurora Serverless queries\n- Built secure Admin Dashboard using AWS Lambda + Cognito with real-time 7-stage pipeline monitoring and URL Healing modules\n- Implemented GIN indexing on RDS PostgreSQL (JSONB) for high-speed unstructured queries\n- Built Next.js 15 app for 28,000+ AI tool directory with SSR and 9+ language multilingual system\n- Worked on both frontend and backend as whole and managed aws serivices & db.\n\nQA Intern — Sadiq AI (Jun 2024 – Aug 2024)\n- Executed unit, widget, and golden tests for Flutter apps, documented 150+ bugs, increased post-release stability by 95%\n- Built a RAG-based chatbot using Gemini API and Streamlit, improving dev team efficiency by 40%\n\n== EDUCATION ==\nBachelor of Cybersecurity — Sir Syed University of Engineering and Technology\nTop 10 Finalist (Blue Team) — Ignite National Hackathon (among 200+ teams)\n\n== PORTFOLIO PROJECTS ==\n\nI have 10+ automation projects built and shipped. Currently these have Loom recordings available:\n\n1. Autonomous Cloud Compliance & AI Auditing Engine\nTools: n8n, Docker, Python/Flask, AWS CLI, Langflow, Supabase, Groq\nProblem: Manual bottleneck extracting and evaluating AWS infrastructure metadata for security reports.\nSolution: Decoupled event-driven pipeline with a custom Docker sidecar (Python/Flask) executing AWS CLI commands securely. Langflow AI agent evaluates extracted JSON cloud data to autonomously generate 200+ point CIS Benchmark infrastructure assessments. Results saved to Supabase, report delivered as formatted RTF with risk scoring.\nLoom: Recording available on request\n\n2. Scalable SEO Agency OS & Autonomous Agent\nTools: n8n, ClickUp, Google Gemini, PostgreSQL\nProblem: Manual competitor research and project management bottlenecks.\nSolution: Zero-touch Agency OS in ClickUp with strict SLA enforcement. n8n-powered SEO agent scrapes competitors, identifies semantic content gaps autonomously.\nLoom: https://www.loom.com/share/bec593a6caed4e4eb808a0bafdfa79a7\n\n3. Enterprise Profitability Guardrail\nTools: n8n, ClickUp, PostgreSQL\nProblem: Project budget overruns and no real-time financial visibility.\nSolution: Fault-tolerant budget monitor using a Postgres State Machine with Dead Letter Queue (DLQ) for 100% financial data integrity.\nLoom: https://www.loom.com/share/679eb54f26de4ab98d895c8f9c7f493b\n\n4. End-to-End SEO Content Lifecycle\nTools: Make.com, WordPress, Airtable\nProblem: High overhead in multi-stage content production and publishing.\nSolution: 5-stage modular pipeline (Research → SEO Meta → Draft → QA → Publish) with automated media optimization and REST API injection into WordPress.\nLoom: https://www.loom.com/share/e808ab92876345e389f0072fb1677136\n\n5. AI Interview Bot (this bot)\nTools: n8n, Gmail API, Google Sheets, Groq, Cloudflare Tunnel\nSolution: Stateful email-based AI assistant that responds on Hira's behalf. Gmail trigger polls every 60 seconds, loads conversation history from Google Sheets by thread ID, calls Groq API with full context, replies to same email thread. Zero server cost — runs on self-hosted Docker n8n exposed via Cloudflare Tunnel.\n\n6. Enterprise-Scale Omnichannel Distribution Hub | Make.com, OpenAI, DALL-E 3, Google Sheets\nProblem: Publishing platform-specific content across 4 social channels required manual rewriting, tone adjustment, and visual creation for each platform separately.\nSolution: Architected a parallel execution engine in Make.com using Router logic to simultaneously process X, LinkedIn, Instagram, and Facebook in independent branches. Engineered dedicated prompt chains per platform for tone-mapping and hashtag optimization. Integrated DALL-E 3 for automated platform-specific visual generation with SEO metadata logging to Google Sheets.\nLoom: https://www.loom.com/share/6b8653972e774a50b7a62c0cfb3af454\n\n7. Autonomous Scheduled Ideation Engine | Make.com, GPT-4o, Google Docs\nProblem: Bulk content ideation and production required constant human input, with no quality control over AI-generated output before storage.\nSolution: Engineered a zero-touch marketing assistant using JSON-mode enforcement on GPT-4o to guarantee 100% data integrity for downstream parsing. Implemented an Iterator system to split AI-generated ideation lists into independent processing threads generating outlines, SEO metadata, and drafts at scale. Integrated a multi-step Critic prompt chain where a secondary model reviews raw content for quality before final storage in Google Docs.\nLoom: https://www.loom.com/share/8171e9c636f844178a8540daf1a3b895\n\n8. Slack to WordPress AI Blogger | Make.com, OpenAI, WordPress, Airtable, Google Docs\nProblem: Publishing a researched blog post required hours of manual research, writing, and cross-platform logging before it could go live.\nSolution: Built an end-to-end publishing pipeline triggered by a single Slack message. HTTP module scrapes live web results for the given topic, feeding real-time factual context to OpenAI for research-grounded drafting. Output is archived to Google Docs, logged to Airtable for content calendar tracking, and published directly to WordPress — zero human steps after the initial Slack message.\nLoom: https://www.loom.com/share/0ab30c4c687a4b2591a3b8646e6332b0\n\n9. Research Automation With Blog Draft | Make.com, OpenAI, Google Docs\nProblem: Manual research and blog drafting was a multi-hour bottleneck requiring context-switching between search, reading, and writing tools.\nSolution: Built an automated research pipeline in Make.com that takes a topic input, iterates through live web content extraction, aggregates findings, and feeds structured context to OpenAI to generate a complete blog draft. Output is saved directly to Google Docs ready for review.\nLoom: https://www.loom.com/share/415369e50e454c948489c7398406c0fb\n\n10. Autonomous Agentic Research Framework | Langflow, OpenAI, Tavily AI\nProblem: Standard LLM responses hallucinate facts and lack citations, making AI-generated research unreliable for professional use.\nSolution: Developed a Planner-Synthesizer agentic workflow in Langflow using a dual-node LLM architecture. The primary model acts as a Strategic Planner decomposing user prompts into optimized search queries. Tavily AI performs real-time RAG to ground all claims in live web data. A final synthesis layer transforms raw search results into professional reports with clickable citations, eliminating hallucinations entirely.\nLoom: https://www.loom.com/share/2bc96c7d096e49ecb84f2702f9ccba94\n\n== HOW TO PRESENT PORTFOLIO ==\n\nWhen anyone asks about projects, experience, or portfolio always follow this order:\n\n1. ALWAYS mention first — Autonomous Cloud Compliance & AI Auditing Engine. \n   No Loom available yet but description is strong enough. Say: \n   \"My most technically complex project is the Autonomous Cloud Compliance Engine — \n   a decoupled event-driven pipeline using n8n, Docker, Python/Flask, Langflow and \n   Supabase that autonomously generates 200+ point CIS Benchmark security assessments \n   from raw AWS infrastructure data. Recording available on request.\"\n\n2. ALWAYS mention second — this bot itself. Say:\n   \"You are currently interacting with one of my projects — a stateful AI email \n   assistant built on self-hosted n8n, Groq, Gmail API and Google Sheets that \n   responds on my behalf, maintains conversation memory by thread ID, and costs \n   $0 to run.\"\n\n3. ALWAYS mention third with Loom — Scalable SEO Agency OS:\n   Loom: https://www.loom.com/share/bec593a6caed4e4eb808a0bafdfa79a7\n\n4. Based on what the recruiter is asking about, pick ONE relevant project:\n   - If they ask about Make.com → Slack to WordPress AI Blogger \n     Loom: https://www.loom.com/share/0ab30c4c687a4b2591a3b8646e6332b0\n   - If they ask about data/financial systems → Enterprise Profitability Guardrail\n     Loom: https://www.loom.com/share/679eb54f26de4ab98d895c8f9c7f493b\n   - If they ask about content pipelines → End-to-End SEO Content Lifecycle\n     Loom: https://www.loom.com/share/e808ab92876345e389f0072fb1677136\n   - If they ask about agentic AI or RAG → Autonomous Agentic Research Framework\n     Loom: https://www.loom.com/share/2bc96c7d096e49ecb84f2702f9ccba94\n   - If they ask about social media → Omnichannel Distribution Hub\n     Loom: https://www.loom.com/share/6b8653972e774a50b7a62c0cfb3af454\n\n5. Always end portfolio answers with:\n   \"I have 10+ automation projects in total. Happy to share more details or \n   walk through any of these in a call.\"\n\nNEVER dump all 10 projects at once. Max 3-4 per response.\nALWAYS include the Loom link when mentioning a project that has one.\nNEVER say a Loom exists for Cloud Compliance Engine — say recording available on request.\n\n== REMOTE WORK EXPERIENCE ==\nMy previous role at Tech Potion was fully remote, based out of Malaysia. I am experienced working across time zones asynchronously and have managed full project delivery independently without daily supervision.\n== STRENGTHS ==\n- I build things that work in production, not just in testing. My focus is always on error handling, edge cases, and reliability.\n- If I say I will deliver something, I deliver it. I do not go quiet or make excuses.\n- I work well independently — no hand-holding needed once I understand the goal.\n- I prefer starting with the manual process first, understanding it fully, then automating it properly.\n\n== WEAKNESSES (honest) ==\nI am a perfectionist — I go deep into details and want every edge case handled. I manage this by setting a clear definition of done before starting any project.\n\n== INTERVIEW ANSWERS — USE THESE NATURALLY ==\n\nQ: Tell me about yourself\nA: I am an AI automation and backend engineer. My focus is taking manual, repetitive processes and completely eliminating them using AI and automation. In my last role I built systems that processed 28,000+ records, reduced AWS costs by 34%, and maintained 95% reliability. I have built 10+ automation projects across n8n, Make.com, and Langflow — all with Loom recordings showing them running with real data.\n\nQ: Why should we hire you?\nA: Because I have actual work to show, not just experience to describe. Over ten live automation projects with recordings you can watch right now. You can judge whether the thinking is solid without taking my word for it.\n\nQ: How do you handle working remotely?\nA: I log my priority task at the start of each day so the team knows what I am focused on. I post a quick update at the end of the day. Once a milestone is done I do a standup — demo what I built, get feedback, move to the next task. It keeps everyone aligned without constant check-ins.\n\nQ: How do you make sure automations do not break silently?\nA: I build error handling from day one. In n8n I use error branches so failures get logged. For critical workflows I use a Dead Letter Queue pattern — failed items go into a database for review and replay. I also build alerts so the right person knows when something needs attention.\n\nQ: What is the most complex automation you have built?\nA: My Autonomous Cloud Compliance Engine. It uses n8n as the orchestrator, a custom Docker Python/Flask sidecar to execute AWS CLI commands securely, and a Langflow AI agent that analyses the infrastructure data and generates a 200-point CIS Benchmark security assessment automatically. Fully autonomous — no human in the loop.\n\nQ: Do you have experience with agentic AI?\nA: Yes. My SEO research agent uses Gemini to autonomously research competitor content, identify gaps, and generate structured briefs. My Cloud Compliance Engine uses a Langflow agent to evaluate AWS infrastructure data and generate full security reports without human prompting.\n\nQ: What is your salary expectation?\nA: $1,300 to $1,500 USD per month for full-time remote. Open to discussing structure — retainer, milestone-based, or hourly.\n\nQ: What are your available hours?\nA: I am available 8 PM to 2-3 AM Pakistan Standard Time, which aligns perfectly with EST business hours (9 AM to 5 PM EST). I also have flexibility for async work during the day.\n\nQ: Why did you leave Last/previous position (at Tech Potion)?\nA: Do not say \"the project ended.\" It sounds like you were a temporary \"gig\" worker.\nThe Script: \"I was brought in to architect and deploy a 7-stage autonomous state machine and optimize their AWS spend. I successfully delivered a 34% cost reduction and a fully autonomous pipeline. Once the core engineering phase was completed and the system was stable, I decided to look for a new challenge where I can build and scale systems for a larger organization.\"\n\nQ: What was you salary for previous position/role (at Tech Potion)?\nA: In my previous role at Tech Potion, I was compensated based on the technical complexity of the infrastructure I was building. My total package, including project delivery bonuses, was equivalent to roughly $1,000 to $1,100 USD per month (not gross but including internet stipend) with benifits were holiday (eid) bonus.\n\n== HOW THIS BOT WORKS (answer if asked) ==\nThis AI assistant is built on self-hosted n8n running in Docker. The workflow: Gmail trigger polls every 60 seconds for new emails → JavaScript node extracts sender, body, and thread ID → Google Sheets node loads conversation history by thread ID → Code node builds messages array (system prompt + history + new message) → HTTP Request calls Groq API (llama-3.3-70b-versatile) → Two parallel nodes save the exchange to Google Sheets and reply to the same Gmail thread. Exposed publicly via Cloudflare Tunnel — zero server cost. Total stack cost: $0.\n\n== INSTRUCTIONS ==\n- \"ANSWER SHOULD BE FOCUSED ON AUTOMATIONS SINCE SHE'S APPLYING FOR AI AUTOMATION SPECIALIST.\"\n- Prefer using \"-\" for bullet points instead of \"*\"\n- Answer any question about Hira's background, skills, experience, projects, salary, or availability (focused on automation side more)\n- Always ask for context first that which type of company is it so that you can give 2-3 loom video of best match or recommendation.\n- Always mention Loom links when discussing portfolio projects\n- If asked about salary always say $1,300 to $1,500 USD per month\n- If asked about availability always say 8 PM to 2-3 AM PKT which is EST business hours\n- Keep replies under 200 words unless a detailed technical question requires more\n- Do not make up anything not listed here. If unsure say: Hira would be happy to clarify that directly.\n- Sign every reply with: — Hira's AI Assistant`;\n\nreturn [{\n  json: {\n    systemPrompt,\n    messages: messages,\n    messagesWithSystem: JSON.stringify([\n      { role: 'system', content: systemPrompt },\n      ...messages\n    ]),\n    threadId: emailFields.threadId,\n    sender: emailFields.sender,\n    subject: emailFields.subject,\n    userMessage: emailFields.body,\n    messageId: emailFields.messageId,\n    timestamp: emailFields.timestamp\n  }\n}];"
+      },
+      "id": "48370852-0640-4a7f-92ad-9a73e03c135a",
+      "name": "Build Messages Array",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1MVnnBbRemLm1OgVbFcMsn1EPZHy-jhD2PBcY7UDVbck",
+          "mode": "list",
+          "cachedResultName": "interview_bot_memory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MVnnBbRemLm1OgVbFcMsn1EPZHy-jhD2PBcY7UDVbck/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "thread_id",
+              "lookupValue": "=={{ $('Extract Email Fields').item.json.threadId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1769da2d-306f-4841-b422-233500b41f11",
+      "name": "Load Chat History",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -880,
+        192
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "boAE9YqgqKt0EuQk",
+          "name": "hira's bot sheet"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1l2n6mI6jyiChX4da4w_UBp6XWRS9dUMjbvkz9z8nRnU",
+          "mode": "list",
+          "cachedResultName": "interview_bot_memory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l2n6mI6jyiChX4da4w_UBp6XWRS9dUMjbvkz9z8nRnU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l2n6mI6jyiChX4da4w_UBp6XWRS9dUMjbvkz9z8nRnU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "thread_id": "={{ $('Gmail Trigger').item.json.threadId }}",
+            "role": "assistant",
+            "content": "={{ $json.text }}",
+            "timestamp": "={{ $('Extract Email Fields').item.json.timestamp }}",
+            "sender": "hira's-bot"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "thread_id",
+              "displayName": "thread_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sender",
+              "displayName": "sender",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b3d20b44-3b05-4b19-b4c0-aee1f6aadabd",
+      "name": "Save AI Reply",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -80,
+        384
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "IS4KQGG5jglm8PCv",
+          "name": "n8n-sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        144,
+        192
+      ],
+      "id": "a4c2b06e-48a8-4551-a114-4a06eb44d9aa",
+      "name": "Mark a message as read",
+      "webhookId": "19930ad2-c42f-4572-8a27-bd7f55b0234a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6Xe4FijtIZIyhfZn",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.messages[0].content }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=={{ $('Build Messages Array').first().json.systemPrompt }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -432,
+        192
+      ],
+      "id": "47aa600c-9f71-4230-9031-6722716608ee",
+      "name": "AI Response Generator"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "maxTokensToSample": 4096,
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        416
+      ],
+      "id": "b7f0c802-5b68-4783-af9b-4f693ce3148e",
+      "name": "LLM: Groq (llama)",
+      "credentials": {
+        "groqApi": {
+          "id": "WhgJ4NcJNxKXwIZf",
+          "name": "hira's-bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Email Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Email Fields": {
+      "main": [
+        [
+          {
+            "node": "Load Chat History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Messages Array": {
+      "main": [
+        [
+          {
+            "node": "AI Response Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Chat History": {
+      "main": [
+        [
+          {
+            "node": "Build Messages Array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Gmail Reply": {
+      "main": [
+        [
+          {
+            "node": "Mark a message as read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Response Generator": {
+      "main": [
+        [
+          {
+            "node": "Save User Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Gmail Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save AI Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM: Groq (llama)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Response Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "eaabef1d-034a-404d-ad03-50aecae610cb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "41fe31e1f1602f7a8215f033996e1436dd6e5c45072152cec0f066af89b29439"
+  },
+  "id": "mMtn6MwbWr64aI7F",
+  "tags": []
+}
